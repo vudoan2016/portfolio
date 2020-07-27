@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
+import "package:intl/intl.dart";
 
 Future<List<Asset>> fetchAsset() async {
   final response =
@@ -25,22 +26,28 @@ Future<List<Asset>> fetchAsset() async {
 
 class Asset {
   final String symbol;
-  final double price;
-  final double gain;
   final String type;
-
-  Asset({this.symbol, this.price, this.gain, this.type});
+  final double price;
+  final double todayGain;
+  final double value;
+  final double gain;
+  final double cost;
+  Asset({this.symbol, this.price, this.todayGain, this.type, this.value, this.gain, this.cost});
 
   String toString() {
-    return "Asset name: ${symbol}, price: ${price}, gain: ${gain}, type: ${type}";
+    return "Asset name: ${symbol}, price: ${price}, today gain: ${todayGain}, "
+        "type: ${type}, value: ${value}, gain: ${gain}, cost: ${cost}";
   }
 
   factory Asset.fromJson(Map<String, dynamic> json) {
     return Asset(
-      symbol: json['symbol'].toUpperCase(),
+      symbol: json['Symbol'].toUpperCase(),
       price: json['RegularMarketPrice'].toDouble(),
-      gain: json['RegularMarketChangePercent'].toDouble(),
+      todayGain: json['RegularMarketChangePercent'].toDouble(),
       type: json['type'],
+      value: json['Value'].toDouble(),
+      gain: json['Gain'].toDouble(),
+      cost: json['Cost'].toDouble(),
     );
   }
 }
@@ -55,6 +62,10 @@ class MyApp extends StatefulWidget {
 }
 
 const pageTitles = ['Summary', 'Investment', 'Retirement'];
+const WINNER = 1;
+const LOSER = 2;
+const ALL = 3;
+const SELECTION_MAX = 5;
 
 class _MyAppState extends State<MyApp> {
   Future<List<Asset>> futureAsset;
@@ -92,215 +103,169 @@ class _MyAppState extends State<MyApp> {
             onPressed: () {},
           )],
         ),
-        body: PageView(
-          controller: _controller,
-          children: [
-            SummaryPage(futureAsset: futureAsset),
-            InvestmentPage(futureAsset: futureAsset),
-            RetirementPage(futureAsset: futureAsset),
-          ],
-          onPageChanged: _handlePageChange,
-        ),
+        body: FutureBuilder<List<Asset>>(
+          future: futureAsset,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              return PageView(
+                controller: _controller,
+                children: [
+                  SummaryPage(data: snapshot.data),
+                  InvestmentPage(data: snapshot.data),
+                  RetirementPage(data: snapshot.data),
+                ],
+                onPageChanged: _handlePageChange,
+              );}
+            // By default, show a loading spinner.
+            return CircularProgressIndicator();
+          })
       ),
     );
   }
 }
 
 class SummaryPage extends StatelessWidget {
-  final Future<List<Asset>> futureAsset;
-  final selectionMax = 5;
-  final winner = 1;
-  final loser = 2;
+  final List<Asset> data;
 
-  SummaryPage({Key key, @required this.futureAsset}) : super(key: key);
+  SummaryPage({Key key, @required this.data}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    Summary winnerSummary = select(data, WINNER, "", SELECTION_MAX);
+    Summary loserSummary = select(data, LOSER, "", SELECTION_MAX);
+    var f = new NumberFormat("#,###.0#", "en_US");
     return Center(
-      child: FutureBuilder<List<Asset>>(
-        future: futureAsset,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            DataRow _createDataRow(asset, performer) {
-                  var color = performer == winner ? Colors.green : Colors.red;
-                  return DataRow(
-                    cells: <DataCell>[DataCell(Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataCell(Text(asset.price.toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataCell(Text(asset.gain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),],
-                  );
-                }
-            List<DataRow> _select(data, performer) {
-              // assets can have the same symbol so assetMap is used to eliminate duplicates
-              var assetMap = new Map();
-              var l = List<DataRow>();
-              var count = 0;
-              Iterable it = performer == winner ? data : data.reversed;
-              for (var e in it) {
-                if (performer == winner && e.gain <= 0 || performer == loser && e.gain >= 0 || count == selectionMax) {
-                  break;
-                } else if (!assetMap.containsKey(e.symbol) && (e.type == "taxed" || e.type == "deferred")) {
-                  l.add(_createDataRow(e, performer));
-                  assetMap[e.symbol] = true;
-                  count++;
-                }
-              }
-              // List.generate(snapshot.data.length, (index) => _createDataRow(snapshot.data[index])),
-              return l;
-            }
-            DataTable _createDataTable(data, performer) {
-              return DataTable(
-                columns: const <DataColumn>[
-                  DataColumn(label: Text('Symbol', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                  DataColumn(label: Text('Price', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                  DataColumn(label: Text('\u0394(%)', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                ],
-                rows: _select(data, performer),
-              );
-            }
-            return Container(
-              child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
-                Center(child: Text('Top Gainers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
-                SingleChildScrollView(scrollDirection: Axis.vertical, child: _createDataTable(snapshot.data, winner)),
-                Padding(padding: EdgeInsets.all(20.00)),
-                Center(child: Text('Top Losers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
-                SingleChildScrollView(scrollDirection: Axis.vertical, child: _createDataTable(snapshot.data, loser)),
-              ],),
-              alignment: Alignment(-1.0, -1.0),
-            );
-          } else if (snapshot.hasError) {
-            return Text("${snapshot.error}");
-          }
-
-          // By default, show a loading spinner.
-          return CircularProgressIndicator();
-          },
-      ),
+      child: Container(
+        child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
+          Row(mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[Text(f.format(winnerSummary.total), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
+          Padding(padding: EdgeInsets.all(20.00)),
+          Center(child: Text('Top Gainers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+          SingleChildScrollView(scrollDirection: Axis.vertical, child: createDataTable(winnerSummary.rows)),
+          Padding(padding: EdgeInsets.all(20.00)),
+          Center(child: Text('Top Losers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+          SingleChildScrollView(scrollDirection: Axis.vertical, child: createDataTable(loserSummary.rows)),
+        ],),
+      alignment: Alignment(-1.0, -1.0),
+      )
     );
   }
 }
 
 class InvestmentPage extends StatelessWidget {
-  final Future<List<Asset>> futureAsset;
+  final List<Asset> data;
 
-  InvestmentPage({Key key, @required this.futureAsset}) : super(key: key);
+  InvestmentPage({Key key, @required this.data}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    Summary investment = select(data, ALL, "taxed", 0);
+    var f = new NumberFormat("#,###.0#", "en_US");
     return Center(
-      child: FutureBuilder<List<Asset>>(
-        future: futureAsset,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            DataRow _createDataRow(asset) {
-              var color = asset.gain >= 0 ? Colors.green : Colors.red;
-              return DataRow(
-                cells: <DataCell>[DataCell(Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(asset.price.toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(asset.gain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),],
-              );
-            }
-            List<DataRow> _select(data) {
-              var l = List<DataRow>();
-              for (var e in data) {
-                if (e.type == "taxed" && e.symbol != 'ETRADE' && e.symbol != 'MERRILL' && e.symbol != 'VANGUARD') {
-                  l.add(_createDataRow(e));
-                }
-              }
-              // List.generate(snapshot.data.length, (index) => _createDataRow(snapshot.data[index])),
-              return l;
-            }
-            DataTable _createDataTable(data) {
-              return DataTable(
-                columns: const <DataColumn>[
-                  DataColumn(label: Text('Symbol', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                  DataColumn(label: Text('Price', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                  DataColumn(label: Text('\u0394(%)', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                ],
-                rows: _select(data),
-              );
-            }
-            return Container(
-              child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
-                SingleChildScrollView(scrollDirection: Axis.vertical, child: _createDataTable(snapshot.data)),
-              ],),
-              alignment: Alignment(-1.0, -1.0),
-            );
-          }
-          else if (snapshot.hasError) {
-            return Text("${snapshot.error}");
-          }
-
-          // By default, show a loading spinner.
-          return CircularProgressIndicator();
-        },
+      child: Container(
+        child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
+          Row(mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[Text(f.format(investment.total), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [Text('Gain'), Text(f.format(investment.gain)+'('+f.format(investment.gainPercent)+'%)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
+          Padding(padding: EdgeInsets.all(20.00)),
+          SingleChildScrollView(scrollDirection: Axis.vertical, child: createDataTable(investment.rows)),
+        ],),
+        alignment: Alignment(-1.0, -1.0),
       ),
     );
   }
 }
 
 class RetirementPage extends StatelessWidget {
-  final Future<List<Asset>> futureAsset;
+  final List<Asset> data;
 
-  RetirementPage({Key key, @required this.futureAsset}) : super(key: key);
+  RetirementPage({Key key, @required this.data}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    Summary retirement = select(data, ALL, "deferred", 0);
+    var f = new NumberFormat("#,###.0#", "en_US");
     return Center(
-      child: FutureBuilder<List<Asset>>(
-        future: futureAsset,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            DataRow _createDataRow(asset) {
-              var color = asset.gain >= 0 ? Colors.green : Colors.red;
-              return DataRow(
-                cells: <DataCell>[DataCell(Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(asset.price.toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(asset.gain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),],
-              );
-            }
-            List<DataRow> _select(data) {
-              var l = List<DataRow>();
-              for (var e in data) {
-                if (e.type == "deferred" && e.symbol != 'ETRADE' && e.symbol != 'FIDELITY' && e.symbol != 'PAYFLEX') {
-                  l.add(_createDataRow(e));
-                }
-              }
-              // List.generate(snapshot.data.length, (index) => _createDataRow(snapshot.data[index])),
-              return l;
-            }
-            DataTable _createDataTable(data) {
-              return DataTable(
-                columns: const <DataColumn>[
-                  DataColumn(label: Text('Symbol', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                  DataColumn(label: Text('Price', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                  DataColumn(label: Text('\u0394(%)', style: TextStyle(fontSize: 15,
-                      fontWeight: FontWeight.bold),),),
-                ],
-                rows: _select(data),
-              );
-            }
-            return Container(
-              child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
-                SingleChildScrollView(scrollDirection: Axis.vertical, child: _createDataTable(snapshot.data)),
-              ],),
-              alignment: Alignment(-1.0, -1.0),
-            );
-          } else if (snapshot.hasError) {
-            return Text("${snapshot.error}");
-          }
-
-          // By default, show a loading spinner.
-          return CircularProgressIndicator();
-        },
-      ),
+      child: Container(
+        child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
+          Row(mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[Text(f.format(retirement.total), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [Text('Gain'), Text(f.format(retirement.gain)+'('+f.format(retirement.gainPercent)+'%)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
+          Padding(padding: EdgeInsets.all(20.00)),
+          SingleChildScrollView(scrollDirection: Axis.vertical, child: createDataTable(retirement.rows)),
+        ],),
+        alignment: Alignment(-1.0, -1.0),
+      )
     );
   }
+}
+
+DataRow createDataRow(asset) {
+  var color = asset.todayGain >= 0 ? Colors.green : Colors.red;
+  return DataRow(
+    cells: <DataCell>[DataCell(Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
+      DataCell(Text(asset.price.toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
+      DataCell(Text(asset.todayGain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),],
+  );
+}
+
+class Summary {
+  double total;
+  double gain;
+  double gainPercent;
+  List<DataRow> rows;
+  Summary({this.total, this.gain, this.gainPercent, this.rows});
+}
+Summary select(assets, performer, type, max) {
+  // assets can have the same symbol so assetMap is used to eliminate duplicates
+  var assetMap = new Map();
+  var l = List<DataRow>();
+  var count = 0;
+  double total = 0;
+  double gain = 0;
+  double cost = 0;
+  Iterable it = performer == WINNER || performer == ALL ? assets : assets.reversed;
+  for (var e in it) {
+    if (performer != ALL) {
+      if (performer == WINNER && e.todayGain >= 0 ||
+          performer == LOSER && e.todayGain <= 0 || count < max &&
+          !assetMap.containsKey(e.symbol) &&
+          (e.type == "taxed" || e.type == "deferred")) {
+        l.add(createDataRow(e));
+        assetMap[e.symbol] = true;
+        count++;
+      }
+      total += e.value;
+    } else {
+      if (e.type == type) {
+        total += e.value;
+        gain += e.gain;
+        cost += e.cost;
+        if (e.symbol != 'ETRADE' && e.symbol != 'FIDELITY' &&
+            e.symbol != 'PAYFLEX' && e.symbol != 'MERRILL' &&
+            e.symbol != 'VANGUARD') {
+          l.add(createDataRow(e));
+        }
+      }
+    }
+  }
+  // To generate a list of all DataRow:
+  // List.generate(snapshot.data.length, (index) => _createDataRow(snapshot.data[index])),
+  return Summary(total: total, gain: gain, gainPercent: gain/cost*100, rows: l);
+}
+
+DataTable createDataTable(rows) {
+  return DataTable(
+    columns: const <DataColumn>[
+      DataColumn(label: Text('Symbol', style: TextStyle(fontSize: 15,
+          fontWeight: FontWeight.bold),),),
+      DataColumn(label: Text('Price', style: TextStyle(fontSize: 15,
+          fontWeight: FontWeight.bold),),),
+      DataColumn(label: Text('\u0394(%)', style: TextStyle(fontSize: 15,
+          fontWeight: FontWeight.bold),),),
+    ],
+    rows: rows,
+  );
 }
