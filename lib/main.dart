@@ -4,7 +4,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
-import "package:intl/intl.dart";
+import 'package:intl/intl.dart';
+import 'push_notification.dart';
+
+const pageTitles = ['Summary', 'Investment', 'Retirement'];
+const WINNER = 1;
+const LOSER = 2;
+const ALL = 3;
+const SELECTION_MAX = 5;
+
+var f = new NumberFormat("#,###.0#", "en_US");
 
 Future<List<Asset>> fetchAsset() async {
   final response =
@@ -61,12 +70,6 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => _MyAppState();
 }
 
-const pageTitles = ['Summary', 'Investment', 'Retirement'];
-const WINNER = 1;
-const LOSER = 2;
-const ALL = 3;
-const SELECTION_MAX = 5;
-
 class _MyAppState extends State<MyApp> {
   Future<List<Asset>> futureAsset;
   int _index = 0;
@@ -79,6 +82,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     futureAsset = fetchAsset();
+    PushNotificationsManager().init();
   }
 
   @override
@@ -133,7 +137,6 @@ class SummaryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     Summary winnerSummary = select(data, WINNER, "", SELECTION_MAX);
     Summary loserSummary = select(data, LOSER, "", SELECTION_MAX);
-    var f = new NumberFormat("#,###.0#", "en_US");
     return Center(
       child: Container(
         child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
@@ -160,7 +163,6 @@ class InvestmentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Summary investment = select(data, ALL, "taxed", 0);
-    var f = new NumberFormat("#,###.0#", "en_US");
     return Center(
       child: Container(
         child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
@@ -169,7 +171,7 @@ class InvestmentPage extends StatelessWidget {
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [Text('Gain'), Text(f.format(investment.gain)+'('+f.format(investment.gainPercent)+'%)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
           Padding(padding: EdgeInsets.all(20.00)),
-          SingleChildScrollView(scrollDirection: Axis.vertical, child: createDataTable(investment.rows)),
+          SingleChildScrollView(scrollDirection: Axis.horizontal, child: createDataTable(investment.rows)),
         ],),
         alignment: Alignment(-1.0, -1.0),
       ),
@@ -185,7 +187,6 @@ class RetirementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Summary retirement = select(data, ALL, "deferred", 0);
-    var f = new NumberFormat("#,###.0#", "en_US");
     return Center(
       child: Container(
         child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
@@ -207,7 +208,9 @@ DataRow createDataRow(asset) {
   return DataRow(
     cells: <DataCell>[DataCell(Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
       DataCell(Text(asset.price.toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
-      DataCell(Text(asset.todayGain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),],
+      DataCell(Text(asset.todayGain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),
+      DataCell(Text(f.format(asset.gain), style: TextStyle(fontWeight: FontWeight.bold),)),
+    ],
   );
 }
 
@@ -218,6 +221,7 @@ class Summary {
   List<DataRow> rows;
   Summary({this.total, this.gain, this.gainPercent, this.rows});
 }
+
 Summary select(assets, performer, type, max) {
   // assets can have the same symbol so assetMap is used to eliminate duplicates
   var assetMap = new Map();
@@ -226,11 +230,11 @@ Summary select(assets, performer, type, max) {
   double total = 0;
   double gain = 0;
   double cost = 0;
-  Iterable it = performer == WINNER || performer == ALL ? assets : assets.reversed;
+  Iterable it = performer == LOSER ? assets.reversed : assets;
   for (var e in it) {
     if (performer != ALL) {
-      if (performer == WINNER && e.todayGain >= 0 ||
-          performer == LOSER && e.todayGain <= 0 || count < max &&
+      if ((performer == WINNER && e.todayGain > 0 ||
+          performer == LOSER && e.todayGain < 0) && count < max &&
           !assetMap.containsKey(e.symbol) &&
           (e.type == "taxed" || e.type == "deferred")) {
         l.add(createDataRow(e));
@@ -265,6 +269,8 @@ DataTable createDataTable(rows) {
           fontWeight: FontWeight.bold),),),
       DataColumn(label: Text('\u0394(%)', style: TextStyle(fontSize: 15,
           fontWeight: FontWeight.bold),),),
+      DataColumn(label: Text('Gain', style: TextStyle(fontSize: 15,
+          fontWeight: FontWeight.bold),)),
     ],
     rows: rows,
   );
