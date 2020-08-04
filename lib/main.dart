@@ -44,8 +44,8 @@ class Asset {
   Asset({this.symbol, this.price, this.todayGain, this.type, this.value, this.gain, this.cost});
 
   String toString() {
-    return "Asset name: ${symbol}, price: ${price}, today gain: ${todayGain}, "
-        "type: ${type}, value: ${value}, gain: ${gain}, cost: ${cost}";
+    return "Asset name: $symbol, price: $price, today gain: $todayGain, "
+        "type: $type, value: $value, gain: $gain, cost: $cost";
   }
 
   factory Asset.fromJson(Map<String, dynamic> json) {
@@ -128,21 +128,31 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class SummaryPage extends StatelessWidget {
+class SummaryPage extends StatefulWidget {
   final List<Asset> data;
 
   SummaryPage({Key key, @required this.data}) : super(key: key);
 
   @override
+  SummaryPageState createState() => SummaryPageState();
+}
+
+class SummaryPageState extends State<SummaryPage> {
+  bool _showTotal = false;
+
+  @override
   Widget build(BuildContext context) {
-    Summary winnerSummary = select(data, WINNER, "", SELECTION_MAX);
-    Summary loserSummary = select(data, LOSER, "", SELECTION_MAX);
+    Summary winnerSummary = select(widget.data, WINNER, "", SELECTION_MAX);
+    Summary loserSummary = select(widget.data, LOSER, "", SELECTION_MAX);
+
     return Center(
       child: Container(
         child: ListView(scrollDirection: Axis.vertical, children: <Widget>[
           Row(mainAxisAlignment: MainAxisAlignment.end,
-            children: <Widget>[Text(f.format(winnerSummary.total), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),],),
-          Padding(padding: EdgeInsets.all(20.00)),
+            children: <Widget>[IconButton(icon: _showTotal ? Icon(Icons.visibility) : Icon(Icons.visibility_off),
+              onPressed: () {setState(() {_showTotal = !_showTotal;});},)]),
+          Visibility (visible: _showTotal, child: Text(f.format(winnerSummary.total), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+          //Padding(padding: EdgeInsets.all(20.00)),
           Center(child: Text('Top Gainers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           SingleChildScrollView(scrollDirection: Axis.vertical, child: createDataTable(winnerSummary.rows)),
           Padding(padding: EdgeInsets.all(20.00)),
