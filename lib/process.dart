@@ -15,12 +15,21 @@ class Asset {
   final double value;
   final double gain;
   final double cost;
+  final DateTime buyDate;
 
-  Asset({this.symbol, this.price, this.todayGain, this.type, this.value, this.gain, this.cost});
+  Asset(
+      {this.symbol,
+      this.price,
+      this.todayGain,
+      this.type,
+      this.value,
+      this.gain,
+      this.cost,
+      this.buyDate});
 
   String toString() {
     return "Asset name: $symbol, price: $price, today gain: $todayGain, "
-        "type: $type, value: $value, gain: $gain, cost: $cost";
+        "type: $type, value: $value, gain: $gain, cost: $cost, buy date: $buyDate";
   }
 
   factory Asset.fromJson(Map<String, dynamic> json) {
@@ -32,13 +41,16 @@ class Asset {
       value: json['Value'].toDouble(),
       gain: json['Gain'].toDouble(),
       cost: json['Cost'].toDouble(),
+      buyDate: DateTime.parse(
+        json['buydate'],
+      ),
     );
   }
 }
 
 Future<List<Asset>> fetchAsset() async {
-  final response =
-  await http.get('http://192.168.0.15:8080/', headers: {"Accept": "application/json"});
+  final response = await http.get('http://192.168.0.17:8080/',
+      headers: {"Accept": "application/json"});
 
   if (response.statusCode == 200) {
     // If the server did return a 200 OK response,
@@ -57,6 +69,8 @@ class Profile {
   double total = 0;
   double gain = 0;
   double gainPercent = 0;
+  double ltGain = 0;
+  double stGain = 0;
   List<DataRow> rows;
   List<DataRow> winners;
   List<DataRow> losers;
@@ -67,8 +81,10 @@ class Profile {
     rows = List<DataRow>();
     winners = List<DataRow>();
     losers = List<DataRow>();
+    var today = new DateTime.now();
 
-    Comparator<Asset> todayGainCmp = (a, b) => b.todayGain.compareTo(a.todayGain);
+    Comparator<Asset> todayGainCmp =
+        (a, b) => b.todayGain.compareTo(a.todayGain);
     assets.sort(todayGainCmp);
 
     assets.forEach((e) {
@@ -77,7 +93,11 @@ class Profile {
         this.gain += e.gain;
         cost += e.cost;
         rows.add(createDataRow(e));
-
+        if (today.difference(e.buyDate).inDays > 365) {
+          this.ltGain += e.gain;
+        } else {
+          this.stGain += e.gain;
+        }
         // select top winners as well
         if (e.todayGain > 0 && count < SELECTION_MAX) {
           winners.add(createDataRow(e));
@@ -91,7 +111,7 @@ class Profile {
     count = 0;
     todayGainCmp = (a, b) => a.todayGain.compareTo(b.todayGain);
     assets.sort(todayGainCmp);
-    assets.forEach ((e) {
+    assets.forEach((e) {
       if (types.contains(e.type) && e.todayGain < 0 && count < SELECTION_MAX) {
         losers.add(createDataRow(e));
         count++;
@@ -102,12 +122,20 @@ class Profile {
   DataRow createDataRow(asset) {
     var color = asset.todayGain >= 0 ? Colors.green : Colors.red;
     return DataRow(
-      cells: <DataCell>[DataCell(Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(Text(asset.price.toStringAsFixed(2), style: TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(Text(asset.todayGain.toStringAsFixed(2), style: TextStyle(color: color, fontWeight: FontWeight.bold)),),
-        DataCell(Text(f.format(asset.gain), style: TextStyle(fontWeight: FontWeight.bold),)),
+      cells: <DataCell>[
+        DataCell(
+            Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
+        DataCell(Text(asset.price.toStringAsFixed(2),
+            style: TextStyle(fontWeight: FontWeight.bold))),
+        DataCell(
+          Text(asset.todayGain.toStringAsFixed(2),
+              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+        ),
+        DataCell(Text(
+          f.format(asset.gain),
+          style: TextStyle(fontWeight: FontWeight.bold),
+        )),
       ],
     );
   }
 }
-
