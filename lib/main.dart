@@ -178,7 +178,7 @@ class InvestmentPageState extends State<InvestmentPage> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           Visibility(
               visible: _showTotal,
-              child: Text('+' + f.format(gain) + '(' + f.format(percent) + '%)',
+              child: Text(f.format(gain) + '(' + f.format(percent) + '%)',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           Visibility(
               visible: _showTotal,
@@ -239,7 +239,7 @@ class RetirementPageState extends State<RetirementPage> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           Visibility(
               visible: _showTotal,
-              child: Text('+' + f.format(gain) + '(' + f.format(percent) + '%)',
+              child: Text(f.format(gain) + '(' + f.format(percent) + '%)',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           Visibility(
               visible: _showTotal,

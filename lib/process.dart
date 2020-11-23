@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 const SELECTION_MAX = 5;
+const DAYS_PER_YEAR = 365;
 
 var f = new NumberFormat("#,###.0#", "en_US");
 
@@ -57,7 +58,13 @@ Future<List<Asset>> fetchAsset() async {
     // then parse the JSON.
     var list = json.decode(response.body) as List;
     List<Asset> assets = list.map((e) => Asset.fromJson(e)).toList();
-    return assets;
+    return assets
+        .where((e) =>
+            e.symbol != "ETRADE" &&
+            e.symbol != "MERRILL" &&
+            e.symbol != "VANGUARD" &&
+            e.symbol != "PAYFLEX")
+        .toList();
   } else {
     // If the server did not return a 200 OK response,
     // then throw an exception.
@@ -93,7 +100,7 @@ class Profile {
         this.gain += e.gain;
         cost += e.cost;
         rows.add(createDataRow(e));
-        if (today.difference(e.buyDate).inDays > 365) {
+        if (today.difference(e.buyDate).inDays > DAYS_PER_YEAR) {
           this.ltGain += e.gain;
         } else {
           this.stGain += e.gain;
