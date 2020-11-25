@@ -5,6 +5,7 @@ import 'push_notification.dart';
 import 'process.dart';
 
 const pageTitles = ['Summary', 'Investment', 'Retirement'];
+enum Performer { winner, loser }
 
 void main() => runApp(MyApp());
 
@@ -93,6 +94,7 @@ class SummaryPage extends StatefulWidget {
 
 class SummaryPageState extends State<SummaryPage> {
   bool _showTotal = false;
+  bool _sorted = true;
   Profile allAssets;
 
   Column header(total) {
@@ -130,18 +132,71 @@ class SummaryPageState extends State<SummaryPage> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           SingleChildScrollView(
               scrollDirection: Axis.vertical,
-              child: createDataTable(allAssets.winners)),
+              child: createDataTable(Performer.winner)),
           Padding(padding: EdgeInsets.all(20.00)),
           Center(
               child: Text('Top Losers',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           SingleChildScrollView(
               scrollDirection: Axis.vertical,
-              child: createDataTable(allAssets.losers)),
+              child: createDataTable(Performer.loser)),
         ],
       ),
       alignment: Alignment(-1.0, -1.0),
     ));
+  }
+
+  DataTable createDataTable([Performer p]) {
+    return DataTable(
+      sortAscending: _sorted,
+      sortColumnIndex: 2,
+      columns: <DataColumn>[
+        DataColumn(
+          label: Text(
+            'Symbol',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            'Price',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            '\u0394(%)',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            'Gain',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+      rows: (p == Performer.winner ? allAssets.winners : allAssets.losers)
+          .map((a) => DataRow(
+                cells: <DataCell>[
+                  DataCell(Text(a.symbol,
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(a.price.toStringAsFixed(2),
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(
+                    Text(a.todayGain.toStringAsFixed(2),
+                        style: TextStyle(
+                            color: a.todayGain >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  DataCell(Text(
+                    f.format(a.gain),
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  )),
+                ],
+              ))
+          .toList(),
+    );
   }
 }
 
@@ -155,8 +210,17 @@ class InvestmentPage extends StatefulWidget {
 }
 
 class InvestmentPageState extends State<InvestmentPage> {
-  bool _showTotal = false;
+  bool _showTotal;
+  bool _sorted;
   Profile investment;
+
+  @override
+  void initState() {
+    _showTotal = false;
+    _sorted = true;
+    investment = Profile(<String>{'taxed'}, widget.data);
+    super.initState();
+  }
 
   Column header(total, gain, percent, ltGain, stGain) {
     return Column(
@@ -189,7 +253,6 @@ class InvestmentPageState extends State<InvestmentPage> {
 
   @override
   Widget build(BuildContext context) {
-    investment = Profile(<String>{'taxed'}, widget.data);
     return Center(
       child: Container(
         child: ListView(
@@ -198,11 +261,93 @@ class InvestmentPageState extends State<InvestmentPage> {
             header(investment.total, investment.gain, investment.gainPercent,
                 investment.ltGain, investment.stGain),
             SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: createDataTable(investment.rows)),
+                scrollDirection: Axis.horizontal, child: createDataTable()),
           ],
         ),
       ),
+    );
+  }
+
+  onSortColum(int columnIndex, bool ascending) {
+    if (columnIndex == 2) {
+      if (ascending) {
+        investment.assets.sort((a, b) => a.todayGain.compareTo(b.todayGain));
+      } else {
+        investment.assets.sort((a, b) => b.todayGain.compareTo(a.todayGain));
+      }
+    } else if (columnIndex == 3) {
+      if (ascending) {
+        investment.assets.sort((a, b) => a.gain.compareTo(b.gain));
+      } else {
+        investment.assets.sort((a, b) => b.gain.compareTo(a.gain));
+      }
+    }
+  }
+
+  DataTable createDataTable() {
+    return DataTable(
+      sortAscending: _sorted,
+      sortColumnIndex: 2,
+      columns: <DataColumn>[
+        DataColumn(
+          label: Text(
+            'Symbol',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            'Price',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          numeric: false,
+          onSort: (columnIndex, ascending) {
+            setState(() {
+              _sorted = !_sorted;
+            });
+            onSortColum(columnIndex, ascending);
+          },
+          label: Text(
+            '\u0394(%)',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          numeric: false,
+          onSort: (columnIndex, ascending) {
+            setState(() {
+              _sorted = !_sorted;
+            });
+            onSortColum(columnIndex, ascending);
+          },
+          label: Text(
+            'Gain',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+      rows: investment.assets
+          .map((a) => DataRow(
+                cells: <DataCell>[
+                  DataCell(Text(a.symbol,
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(a.price.toStringAsFixed(2),
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(
+                    Text(a.todayGain.toStringAsFixed(2),
+                        style: TextStyle(
+                            color: a.todayGain >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  DataCell(Text(
+                    f.format(a.gain),
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  )),
+                ],
+              ))
+          .toList(),
     );
   }
 }
@@ -216,8 +361,17 @@ class RetirementPage extends StatefulWidget {
 }
 
 class RetirementPageState extends State<RetirementPage> {
-  bool _showTotal = false;
+  bool _showTotal;
+  bool _sorted;
   Profile retirement;
+
+  @override
+  void initState() {
+    _showTotal = false;
+    _sorted = true;
+    retirement = Profile(<String>{'deferred'}, widget.data);
+    super.initState();
+  }
 
   Column header(total, gain, percent, ltGain, stGain) {
     return Column(
@@ -250,7 +404,6 @@ class RetirementPageState extends State<RetirementPage> {
 
   @override
   Widget build(BuildContext context) {
-    retirement = Profile(<String>{'deferred'}, widget.data);
     return Center(
         child: Container(
       child: ListView(
@@ -259,41 +412,101 @@ class RetirementPageState extends State<RetirementPage> {
           header(retirement.total, retirement.gain, retirement.gainPercent,
               retirement.ltGain, retirement.stGain),
           SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: createDataTable(retirement.rows)),
+              scrollDirection: Axis.vertical, child: createDataTable()),
         ],
       ),
     ));
   }
-}
 
-DataTable createDataTable(rows) {
-  return DataTable(
-    columns: const <DataColumn>[
-      DataColumn(
-        label: Text(
-          'Symbol',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Price',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          '\u0394(%)',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
+  onSortColum(int columnIndex, bool ascending) {
+    if (columnIndex == 2) {
+      if (ascending) {
+        retirement.assets.sort((a, b) => a.todayGain.compareTo(b.todayGain));
+      } else {
+        retirement.assets.sort((a, b) => b.todayGain.compareTo(a.todayGain));
+      }
+    } else if (columnIndex == 3) {
+      if (ascending) {
+        retirement.assets.sort((a, b) => a.gain.compareTo(b.gain));
+      } else {
+        retirement.assets.sort((a, b) => b.gain.compareTo(a.gain));
+      }
+    }
+  }
+
+  DataTable createDataTable() {
+    return DataTable(
+      sortAscending: _sorted,
+      sortColumnIndex: 2,
+      columns: <DataColumn>[
+        DataColumn(
+          onSort: (columnIndex, ascending) {
+            setState(() {
+              _sorted = !_sorted;
+            });
+            onSortColum(columnIndex, ascending);
+          },
           label: Text(
-        'Gain',
-        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-      )),
-    ],
-    rows: rows,
-  );
+            'Symbol',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          onSort: (columnIndex, ascending) {
+            onSortColum(columnIndex, ascending);
+          },
+          label: Text(
+            'Price',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          numeric: false,
+          onSort: (columnIndex, ascending) {
+            setState(() {
+              _sorted = !_sorted;
+            });
+            onSortColum(columnIndex, ascending);
+          },
+          label: Text(
+            '\u0394(%)',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataColumn(
+          numeric: false,
+          onSort: (columnIndex, ascending) {
+            setState(() {
+              _sorted = !_sorted;
+            });
+            onSortColum(columnIndex, ascending);
+          },
+          label: Text(
+            'Gain',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+      rows: retirement.assets
+          .map((a) => DataRow(
+                cells: <DataCell>[
+                  DataCell(Text(a.symbol,
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(a.price.toStringAsFixed(2),
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(
+                    Text(a.todayGain.toStringAsFixed(2),
+                        style: TextStyle(
+                            color: a.todayGain >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  DataCell(Text(
+                    f.format(a.gain),
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  )),
+                ],
+              ))
+          .toList(),
+    );
+  }
 }

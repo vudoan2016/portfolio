@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -58,13 +57,7 @@ Future<List<Asset>> fetchAsset() async {
     // then parse the JSON.
     var list = json.decode(response.body) as List;
     List<Asset> assets = list.map((e) => Asset.fromJson(e)).toList();
-    return assets
-        .where((e) =>
-            e.symbol != "ETRADE" &&
-            e.symbol != "MERRILL" &&
-            e.symbol != "VANGUARD" &&
-            e.symbol != "PAYFLEX")
-        .toList();
+    return assets;
   } else {
     // If the server did not return a 200 OK response,
     // then throw an exception.
@@ -78,28 +71,34 @@ class Profile {
   double gainPercent = 0;
   double ltGain = 0;
   double stGain = 0;
-  List<DataRow> rows;
-  List<DataRow> winners;
-  List<DataRow> losers;
+  List<Asset> assets;
+  List<Asset> winners;
+  List<Asset> losers;
 
-  Profile(Set<String> types, List<Asset> assets) {
+  Profile(Set<String> types, List<Asset> data) {
     int count = 0;
     double cost = 0;
-    rows = List<DataRow>();
-    winners = List<DataRow>();
-    losers = List<DataRow>();
+    assets = List<Asset>();
+    winners = List<Asset>();
+    losers = List<Asset>();
     var today = new DateTime.now();
 
     Comparator<Asset> todayGainCmp =
         (a, b) => b.todayGain.compareTo(a.todayGain);
-    assets.sort(todayGainCmp);
+    data.sort(todayGainCmp);
 
-    assets.forEach((e) {
+    data.forEach((e) {
       if (types.contains(e.type)) {
         this.total += e.value;
         this.gain += e.gain;
         cost += e.cost;
-        rows.add(createDataRow(e));
+        if (e.symbol != "ETRADE" &&
+            e.symbol != "MERRILL" &&
+            e.symbol != "VANGUARD" &&
+            e.symbol != "PAYFLEX" &&
+            e.symbol != "FIDELITY") {
+          assets.add(e);
+        }
         if (today.difference(e.buyDate).inDays > DAYS_PER_YEAR) {
           this.ltGain += e.gain;
         } else {
@@ -107,7 +106,7 @@ class Profile {
         }
         // select top winners as well
         if (e.todayGain > 0 && count < SELECTION_MAX) {
-          winners.add(createDataRow(e));
+          winners.add(e);
           count++;
         }
       }
@@ -117,32 +116,12 @@ class Profile {
     // Select today top losers
     count = 0;
     todayGainCmp = (a, b) => a.todayGain.compareTo(b.todayGain);
-    assets.sort(todayGainCmp);
-    assets.forEach((e) {
+    data.sort(todayGainCmp);
+    data.forEach((e) {
       if (types.contains(e.type) && e.todayGain < 0 && count < SELECTION_MAX) {
-        losers.add(createDataRow(e));
+        losers.add(e);
         count++;
       }
     });
-  }
-
-  DataRow createDataRow(asset) {
-    var color = asset.todayGain >= 0 ? Colors.green : Colors.red;
-    return DataRow(
-      cells: <DataCell>[
-        DataCell(
-            Text(asset.symbol, style: TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(Text(asset.price.toStringAsFixed(2),
-            style: TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(
-          Text(asset.todayGain.toStringAsFixed(2),
-              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-        ),
-        DataCell(Text(
-          f.format(asset.gain),
-          style: TextStyle(fontWeight: FontWeight.bold),
-        )),
-      ],
-    );
   }
 }
