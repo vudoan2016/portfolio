@@ -212,12 +212,14 @@ class InvestmentPage extends StatefulWidget {
 class InvestmentPageState extends State<InvestmentPage> {
   bool _showTotal;
   bool _sorted;
+  int _sortedCol;
   Profile investment;
 
   @override
   void initState() {
     _showTotal = false;
     _sorted = true;
+    _sortedCol = 2;
     investment = Profile(<String>{'taxed'}, widget.data);
     super.initState();
   }
@@ -269,6 +271,8 @@ class InvestmentPageState extends State<InvestmentPage> {
   }
 
   onSortColum(int columnIndex, bool ascending) {
+    print(columnIndex);
+    print(ascending);
     if (columnIndex == 2) {
       if (ascending) {
         investment.assets.sort((a, b) => a.todayGain.compareTo(b.todayGain));
@@ -287,7 +291,7 @@ class InvestmentPageState extends State<InvestmentPage> {
   DataTable createDataTable() {
     return DataTable(
       sortAscending: _sorted,
-      sortColumnIndex: 2,
+      sortColumnIndex: _sortedCol,
       columns: <DataColumn>[
         DataColumn(
           label: Text(
@@ -306,6 +310,7 @@ class InvestmentPageState extends State<InvestmentPage> {
           onSort: (columnIndex, ascending) {
             setState(() {
               _sorted = !_sorted;
+              _sortedCol = columnIndex;
             });
             onSortColum(columnIndex, ascending);
           },
@@ -319,6 +324,7 @@ class InvestmentPageState extends State<InvestmentPage> {
           onSort: (columnIndex, ascending) {
             setState(() {
               _sorted = !_sorted;
+              _sortedCol = columnIndex;
             });
             onSortColum(columnIndex, ascending);
           },
@@ -363,12 +369,14 @@ class RetirementPage extends StatefulWidget {
 class RetirementPageState extends State<RetirementPage> {
   bool _showTotal;
   bool _sorted;
+  int _sortedCol;
   Profile retirement;
 
   @override
   void initState() {
     _showTotal = false;
     _sorted = true;
+    _sortedCol = 2;
     retirement = Profile(<String>{'deferred'}, widget.data);
     super.initState();
   }
@@ -437,24 +445,15 @@ class RetirementPageState extends State<RetirementPage> {
   DataTable createDataTable() {
     return DataTable(
       sortAscending: _sorted,
-      sortColumnIndex: 2,
+      sortColumnIndex: _sortedCol,
       columns: <DataColumn>[
         DataColumn(
-          onSort: (columnIndex, ascending) {
-            setState(() {
-              _sorted = !_sorted;
-            });
-            onSortColum(columnIndex, ascending);
-          },
           label: Text(
             'Symbol',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
         ),
         DataColumn(
-          onSort: (columnIndex, ascending) {
-            onSortColum(columnIndex, ascending);
-          },
           label: Text(
             'Price',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
@@ -465,6 +464,7 @@ class RetirementPageState extends State<RetirementPage> {
           onSort: (columnIndex, ascending) {
             setState(() {
               _sorted = !_sorted;
+              _sortedCol = columnIndex;
             });
             onSortColum(columnIndex, ascending);
           },
@@ -478,6 +478,7 @@ class RetirementPageState extends State<RetirementPage> {
           onSort: (columnIndex, ascending) {
             setState(() {
               _sorted = !_sorted;
+              _sortedCol = columnIndex;
             });
             onSortColum(columnIndex, ascending);
           },
