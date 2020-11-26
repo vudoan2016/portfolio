@@ -105,7 +105,7 @@ class Profile {
           this.stGain += e.gain;
         }
         // select top winners as well
-        if (e.todayGain > 0 && count < SELECTION_MAX) {
+        if (e.todayGain > 0 && count < SELECTION_MAX && !winners.contains(e)) {
           winners.add(e);
           count++;
         }

@@ -93,9 +93,14 @@ class SummaryPage extends StatefulWidget {
 }
 
 class SummaryPageState extends State<SummaryPage> {
-  bool _showTotal = false;
-  bool _sorted = true;
+  bool _showTotal;
   Profile allAssets;
+
+  @override
+  void initState() {
+    _showTotal = false;
+    super.initState();
+  }
 
   Column header(total) {
     return Column(
@@ -148,8 +153,6 @@ class SummaryPageState extends State<SummaryPage> {
 
   DataTable createDataTable([Performer p]) {
     return DataTable(
-      sortAscending: _sorted,
-      sortColumnIndex: 2,
       columns: <DataColumn>[
         DataColumn(
           label: Text(
@@ -169,12 +172,6 @@ class SummaryPageState extends State<SummaryPage> {
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
         ),
-        DataColumn(
-          label: Text(
-            'Gain',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-          ),
-        ),
       ],
       rows: (p == Performer.winner ? allAssets.winners : allAssets.losers)
           .map((a) => DataRow(
@@ -189,10 +186,6 @@ class SummaryPageState extends State<SummaryPage> {
                             color: a.todayGain >= 0 ? Colors.green : Colors.red,
                             fontWeight: FontWeight.bold)),
                   ),
-                  DataCell(Text(
-                    f.format(a.gain),
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  )),
                 ],
               ))
           .toList(),
@@ -306,7 +299,7 @@ class InvestmentPageState extends State<InvestmentPage> {
           ),
         ),
         DataColumn(
-          numeric: false,
+          numeric: true,
           onSort: (columnIndex, ascending) {
             setState(() {
               _sorted = !_sorted;
@@ -320,7 +313,7 @@ class InvestmentPageState extends State<InvestmentPage> {
           ),
         ),
         DataColumn(
-          numeric: false,
+          numeric: true,
           onSort: (columnIndex, ascending) {
             setState(() {
               _sorted = !_sorted;
