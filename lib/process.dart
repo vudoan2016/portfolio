@@ -49,7 +49,7 @@ class Asset {
 }
 
 Future<List<Asset>> fetchAsset() async {
-  final response = await http.get('http://192.168.0.17:8080/',
+  final response = await http.get('http://192.168.0.11:8080/',
       headers: {"Accept": "application/json"});
 
   if (response.statusCode == 200) {
